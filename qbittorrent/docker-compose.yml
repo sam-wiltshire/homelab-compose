@@ -8,14 +8,14 @@ services:
       - PGID=${PGID}
       - TZ=${TZ}
       - WEBUI_PORT=8081
-      - TORRENTING_PORT=6881
+      - TORRENTING_PORT=51750
     volumes:
       - data:/config
       - "${DOWNLOADS}:/downloads" #optional
     ports:
       - 8081:8081
-      - 6881:6881
-      - 6881:6881/udp
+      - 51750:51750
+      - 51750:51750/udp
     restart: unless-stopped
 volumes:
     data:
