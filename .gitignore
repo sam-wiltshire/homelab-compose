@@ -1,0 +1,10 @@
+# Ignore environment files
+.env
+**/.env
+
+# Ignore common editor/temp files
+.DS_Store
+*.log
+
+# Docker compose overrides
+docker-compose.override.yml
