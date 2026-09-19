@@ -1,0 +1,15 @@
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    environment:
+      - TZ=${TZ}
+      - ND_SCANSCHEDULE=1h
+    volumes:
+      - data:/data
+      - "${MUSIC}:/music:ro"
+    ports:
+      - "4533:4533"
+    restart: unless-stopped
+volumes:
+    data:

@@ -11,6 +11,7 @@ services:
       - TORRENTING_PORT=51750
     volumes:
       - data:/config
+      - "${MEDIA_ROOT}:/media"
       - "${DOWNLOADS}:/downloads" #optional
     ports:
       - 8081:8081
