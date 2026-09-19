@@ -1,0 +1,211 @@
+theme:
+  background-color: 222 14 11
+  primary-color: 30 100 55
+  positive-color: 115 54 45
+  negative-color: 0 70 50
+
+pages:
+  - name: Home
+    columns:
+      - size: small
+        widgets:
+          - type: clock
+            hour-format: 24h
+
+          - type: calendar
+            first-day-of-week: monday
+
+          - type: weather
+            location: London, United Kingdom
+            units: metric
+
+      - size: full
+        widgets:
+          - type: search
+            search-engine: duckduckgo
+            autofocus: false
+            target: _blank
+            bangs:
+              - title: YouTube
+                shortcut: "!yt"
+                url: https://www.youtube.com/results?search_query={QUERY}
+              - title: GitHub
+                shortcut: "!gh"
+                url: https://github.com/search?q={QUERY}
+
+          - type: monitor
+            cache: 1m
+            title: Services
+            sites:
+              - title: Radarr
+                url: ${RADARR_URL}
+                icon: si:radarr
+              - title: Sonarr
+                url: ${SONARR_URL}
+                icon: si:sonarr
+              - title: Prowlarr
+                url: ${PROWLARR_URL}
+                icon: di:prowlarr
+              - title: qBittorrent
+                url: ${QBITTORRENT_URL}
+                icon: si:qbittorrent
+              - title: Autobrr
+                url: ${AUTOBRR_URL}
+                icon: di:autobrr
+              - title: Audiobookshelf
+                url: ${AUDIOBOOKSHELF_URL}
+                icon: si:audiobookshelf
+              - title: Gotify
+                url: ${GOTIFY_URL}
+                icon: di:gotify
+              - title: Nginx Proxy Manager
+                url: ${NGINX_PROXY_MANAGER_URL}
+                icon: si:nginxproxymanager
+
+          - type: rss
+            limit: 10
+            collapse-after: 5
+            cache: 3h
+            feeds:
+              - url: https://www.phoronix.com/rss.php
+                title: Phoronix
+              - url: https://itsfoss.com/feed/
+                title: It's FOSS
+              - url: https://2.5admins.com/feed/podcast
+                title: 2.5 Admins
+              - url: https://latenightlinux.com/feed/mp3
+                title: Late Night Linux
+
+      - size: small
+        widgets:
+          - type: bookmarks
+            groups:
+              - title: Homelab
+                links:
+                  - title: Router
+                    url: ${ROUTER_URL}
+                  - title: Proxy Manager
+                    url: ${NGINX_PROXY_MANAGER_URL}
+
+          - type: releases
+            cache: 6h
+            repositories:
+              - glanceapp/glance
+              - autobrr/autobrr
+              - Radarr/Radarr
+              - Sonarr/Sonarr
+
+  - name: Monitoring
+    columns:
+      - size: full
+        widgets:
+          - type: monitor
+            cache: 1m
+            title: Infrastructure
+            sites:
+              - title: Proxmox
+                url: ${PROXMOX_URL}
+                icon: si:proxmox
+                allow-insecure: true
+              - title: TrueNAS
+                url: ${TRUENAS_URL}
+                icon: si:truenas
+                allow-insecure: true
+
+          - type: split-column
+            widgets:
+              - type: custom-api
+                title: Proxmox Host
+                cache: 5m
+                url: ${PROXMOX_URL}/api2/json/cluster/resources?type=node
+                allow-insecure: true
+                headers:
+                  Authorization: "PVEAPIToken=${PROXMOX_API_TOKEN}"
+                template: |
+                  {{ range .JSON.Array "data" }}
+                  <ul class="list-horizontal-text">
+                    <li>CPU {{ printf "%.0f" (div (.Float "cpu") 0.01) }}%</li>
+                    <li>MEM {{ printf "%.1f" (div (.Float "mem") 1073741824) }}/{{ printf "%.1f" (div (.Float "maxmem") 1073741824) }} GB</li>
+                    <li>Up {{ printf "%.0f" (div (.Float "uptime") 86400) }}d</li>
+                  </ul>
+                  {{ end }}
+
+              - type: custom-api
+                title: TrueNAS Host
+                cache: 5m
+                method: POST
+                url: ${TRUENAS_URL}/api/v2.0/reporting/get_data
+                allow-insecure: true
+                headers:
+                  Authorization: "Bearer ${TRUENAS_API_KEY}"
+                subrequests:
+                  info:
+                    url: ${TRUENAS_URL}/api/v2.0/system/info
+                    allow-insecure: true
+                    headers:
+                      Authorization: "Bearer ${TRUENAS_API_KEY}"
+                body:
+                  graphs:
+                    - name: cpu
+                    - name: memory
+                template: |
+                  {{ $cpuRows := .JSON.Array "0.data" }}
+                  {{ $cpuRow := index $cpuRows (sub (len $cpuRows) 2) }}
+                  {{ $cpuUsage := add (add ($cpuRow.Float "0") ($cpuRow.Float "1")) (add ($cpuRow.Float "2") ($cpuRow.Float "3")) }}
+
+                  {{ $memRows := .JSON.Array "1.data" }}
+                  {{ $memRow := index $memRows (sub (len $memRows) 2) }}
+                  {{ $active := $memRow.Float "0" }}
+                  {{ $inactive := $memRow.Float "1" }}
+                  {{ $wired := $memRow.Float "2" }}
+                  {{ $laundry := $memRow.Float "3" }}
+                  {{ $free := $memRow.Float "4" }}
+                  {{ $total := add (add $active $inactive) (add $wired (add $laundry $free)) }}
+                  {{ $used := sub $total $free }}
+
+                  {{ $uptimeSeconds := (.Subrequest "info").JSON.Float "uptime_seconds" }}
+
+                  <ul class="list-horizontal-text">
+                    <li>CPU {{ printf "%.1f" $cpuUsage }}%</li>
+                    <li>MEM {{ printf "%.1f" (div $used 1073741824) }}/{{ printf "%.1f" (div $total 1073741824) }} GB</li>
+                    <li>Up {{ printf "%.0f" (div $uptimeSeconds 86400) }}d</li>
+                  </ul>
+
+          - type: custom-api
+            title: Proxmox VMs & LXCs
+            cache: 1m
+            url: ${PROXMOX_URL}/api2/json/cluster/resources?type=vm
+            allow-insecure: true
+            headers:
+              Authorization: "PVEAPIToken=${PROXMOX_API_TOKEN}"
+            template: |
+              <ul class="cards-grid" style="--cards-per-row: 2">
+              {{ range .JSON.Array "data" }}
+                <li class="card">
+                  <div class="flex items-center justify-between">
+                    <span>{{ .String "name" }}</span>
+                    <span{{ if eq (.String "status") "running" }} class="color-positive"{{ else }} class="color-negative"{{ end }}>
+                      {{ .String "status" }}
+                    </span>
+                  </div>
+                  {{ if eq (.String "status") "running" }}
+                  <ul class="list-horizontal-text">
+                    <li>CPU {{ printf "%.0f" (div (.Float "cpu") 0.01) }}%</li>
+                    <li>MEM {{ printf "%.1f" (div (.Float "mem") 1073741824) }}/{{ printf "%.1f" (div (.Float "maxmem") 1073741824) }} GB</li>
+                    <li>Up {{ printf "%.0f" (div (.Float "uptime") 86400) }}d</li>
+                  </ul>
+                  {{ end }}
+                </li>
+              {{ end }}
+              </ul>
+
+          - type: docker-containers
+            hide-by-default: false
+
+      - size: small
+        widgets:
+          - type: dns-stats
+            service: adguard
+            url: ${ADGUARD_URL}
+            username: ${ADGUARD_USERNAME}
+            password: ${ADGUARD_PASSWORD}
